@@ -1,0 +1,136 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id          Int      @id @default(autoincrement())
+  nama        String
+  username    String   @unique
+  peran       String   // "Analis", "Supervisor", "Admin"
+  statusAktif Boolean  @default(true)
+  password    String   // hashed
+}
+
+model Method {
+  id                 Int        @id @default(autoincrement())
+  nama               String
+  targetBeratSampel  Float
+  toleransi          Float
+  batasBeratKonstan  Float
+  batasRepeatability Float
+  suhu               Float
+  durasi             Int        // minutes
+  analyses           Analysis[]
+}
+
+model Balance {
+  id               Int        @id @default(autoincrement())
+  kode             String     @unique
+  resolusi         Float
+  tanggalKalibrasi DateTime
+  jatuhTempo       DateTime
+  analyses         Analysis[]
+}
+
+model Furnace {
+  id               Int          @id @default(autoincrement())
+  kode             String       @unique
+  tanggalKalibrasi DateTime
+  jatuhTempo       DateTime
+  analyses         Analysis[]
+  furnaceRuns      FurnaceRun[]
+}
+
+model Crucible {
+  id     Int    @id @default(autoincrement())
+  nomor  String @unique
+  status String // "Tersedia", "Dipakai", "Rusak"
+}
+
+model Sample {
+  id             Int        @id @default(autoincrement())
+  kodeUnik       String     @unique
+  sumber         String
+  jenis          String
+  tanggalTerima  DateTime
+  status         String     // "Terdaftar", "Dalam analisis", "Menunggu review", "Disetujui", "Ditolak/Ulang"
+  basisPelaporan String
+  analyses       Analysis[]
+}
+
+model Analysis {
+  id          Int          @id @default(autoincrement())
+  sampleId    Int
+  methodId    Int
+  balanceId   Int
+  furnaceId   Int
+  analis      String
+  ulanganKe   Int
+  status      String
+  sample      Sample       @relation(fields: [sampleId], references: [id])
+  method      Method       @relation(fields: [methodId], references: [id])
+  balance     Balance      @relation(fields: [balanceId], references: [id])
+  furnace     Furnace      @relation(fields: [furnaceId], references: [id])
+  weighings   Weighing[]
+  results     Result[]
+  furnaceRuns FurnaceRun[] @relation("FurnaceRunAnalyses")
+}
+
+model Weighing {
+  id          Int      @id @default(autoincrement())
+  analysisId  Int
+  tipe        String   // "W1", "W2", "W3", "W3 ulang"
+  nilai       Float
+  sumberInput String   // "manual", "neraca"
+  waktu       DateTime @default(now())
+  pengguna    String
+  analysis    Analysis @relation(fields: [analysisId], references: [id])
+}
+
+model FurnaceRun {
+  id        Int        @id @default(autoincrement())
+  furnaceId Int
+  jamMasuk  DateTime
+  jamKeluar DateTime?
+  suhu      Float
+  furnace   Furnace    @relation(fields: [furnaceId], references: [id])
+  analyses  Analysis[] @relation("FurnaceRunAnalyses")
+}
+
+model Result {
+  id           Int        @id @default(autoincrement())
+  analysisId   Int
+  beratSampel  Float
+  beratAbu     Float
+  kadarAbu     Float
+  versi        Int
+  statusReview String
+  analysis     Analysis   @relation(fields: [analysisId], references: [id])
+  approvals    Approval[]
+}
+
+model Approval {
+  id        Int      @id @default(autoincrement())
+  resultId  Int
+  penyetuju String
+  keputusan String
+  alasan    String?
+  waktu     DateTime @default(now())
+  result    Result   @relation(fields: [resultId], references: [id])
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  entitas   String
+  aksi      String
+  nilaiLama String?
+  nilaiBaru String?
+  pengguna  String
+  waktu     DateTime @default(now())
+  alasan    String?
+}
